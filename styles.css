@@ -1,0 +1,432 @@
+/* ========================================
+   CUSTOMIZATION SECTION - EDIT THESE VALUES
+   ======================================== */
+:root {
+    /* Color Theme - Change these to customize */
+    --primary-color: #00d4ff;
+    --secondary-color: #7b2cbf;
+    --accent-color: #ff006e;
+    --background-dark: #0a0e27;
+    --card-bg: rgba(15, 23, 42, 0.95);
+    --text-primary: #ffffff;
+    --text-secondary: #94a3b8;
+    
+    /* Animation Speeds */
+    --transition-speed: 0.3s;
+    --glow-intensity: 0 0 20px;
+}
+
+/* ========================================
+   RESET & BASE STYLES
+   ======================================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--background-dark);
+    background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+    color: var(--text-primary);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    position: relative;
+}
+
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 50%, rgba(0, 212, 255, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(123, 44, 191, 0.05) 0%, transparent 50%);
+    animation: gradientShift 15s ease infinite;
+    pointer-events: none;
+}
+
+@keyframes gradientShift {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* ========================================
+   LOADING SCREEN
+   ======================================== */
+#loading {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--background-dark);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    transition: opacity 0.5s ease;
+}
+
+#loading.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.loader {
+    width: 60px;
+    height: 60px;
+    border: 4px solid rgba(0, 212, 255, 0.2);
+    border-top: 4px solid var(--primary-color);
+    border-right: 4px solid var(--accent-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite, pulse 2s ease infinite;
+    box-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+    0%, 100% { box-shadow: 0 0 30px rgba(0, 212, 255, 0.5); }
+    50% { box-shadow: 0 0 50px rgba(0, 212, 255, 0.8); }
+}
+
+#loading p {
+    margin-top: 25px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    letter-spacing: 2px;
+    animation: fadeInOut 2s ease infinite;
+}
+
+@keyframes fadeInOut {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
+/* ========================================
+   3D CANVAS CONTAINER
+   ======================================== */
+#canvas-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+}
+
+#canvas-container:active {
+    cursor: grabbing;
+}
+
+/* ========================================
+   PROFILE OVERLAY (HOVER INFO)
+   ======================================== */
+#profile-overlay {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 40px;
+    max-width: 450px;
+    width: 90%;
+    border: 2px solid;
+    border-image: linear-gradient(45deg, var(--primary-color), var(--accent-color), var(--secondary-color)) 1;
+    box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.5),
+        0 0 40px rgba(0, 212, 255, 0.3),
+        inset 0 0 20px rgba(0, 212, 255, 0.1);
+    z-index: 100;
+    opacity: 0;
+    transition: opacity var(--transition-speed) ease, transform var(--transition-speed) ease;
+    pointer-events: none;
+    animation: borderGlow 3s ease infinite;
+}
+
+@keyframes borderGlow {
+    0%, 100% { box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 212, 255, 0.3); }
+    50% { box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 60px rgba(255, 0, 110, 0.4); }
+}
+
+#profile-overlay.hidden {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+}
+
+#profile-overlay.visible {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    pointer-events: all;
+}
+
+.profile-content {
+    text-align: center;
+}
+
+#avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 4px solid var(--primary-color);
+    margin-bottom: 20px;
+    box-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+    transition: transform var(--transition-speed) ease;
+}
+
+#avatar:hover {
+    transform: scale(1.1) rotate(5deg);
+}
+
+#username {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+#bio {
+    color: var(--text-secondary);
+    margin-bottom: 30px;
+    line-height: 1.6;
+    font-size: 14px;
+}
+
+/* ========================================
+   STATISTICS DISPLAY
+   ======================================== */
+.stats {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 30px;
+    gap: 20px;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    transition: all var(--transition-speed) ease;
+}
+
+.stat-item:hover {
+    background: rgba(0, 212, 255, 0.1);
+    transform: translateY(-5px);
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 5px;
+}
+
+.stat-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* ========================================
+   GITHUB BUTTON
+   ======================================== */
+.github-button {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 50px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+    box-shadow: 0 10px 25px rgba(0, 212, 255, 0.3);
+}
+
+.github-button:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 
+        0 15px 35px rgba(0, 212, 255, 0.4),
+        0 0 20px var(--primary-color);
+}
+
+.github-button:active {
+    transform: translateY(-1px) scale(1.02);
+}
+
+#github-link {
+    text-decoration: none;
+}
+
+/* ========================================
+   INSTRUCTIONS
+   ======================================== */
+#instructions {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(10px);
+    padding: 15px 30px;
+    border-radius: 50px;
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    z-index: 50;
+    animation: float 3s ease-in-out infinite;
+}
+
+#instructions p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(-10px); }
+}
+
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+@media (max-width: 768px) {
+    #profile-overlay {
+        padding: 30px 20px;
+        max-width: 95%;
+    }
+    
+    #username {
+        font-size: 22px;
+    }
+    
+    #avatar {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .stats {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .stat-item {
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 10px 15px;
+    }
+    
+    .stat-value {
+        font-size: 20px;
+    }
+    
+    #instructions {
+        bottom: 20px;
+        padding: 12px 20px;
+    }
+    
+    #instructions p {
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 480px) {
+    #username {
+        font-size: 20px;
+    }
+    
+    #bio {
+        font-size: 13px;
+    }
+    
+    .github-button {
+        padding: 12px 24px;
+        font-size: 14px;
+    }
+}
+
+/* ========================================
+   ACCESSIBILITY
+   ======================================== */
+
+/* Stats Corner Badge */
+#stats-corner {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 50;
+}
+
+.stat-badge {
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    border-radius: 20px;
+    padding: 8px 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: slideInRight 0.5s ease, float 3s ease-in-out infinite;
+}
+
+.stat-badge:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.badge-icon {
+    font-size: 18px;
+}
+
+.badge-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Focus states for accessibility */
+button:focus-visible,
+a:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 4px;
+}

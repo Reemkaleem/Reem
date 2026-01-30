@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D GitHub Profile Viewer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div id="loading">
+        <div class="loader"></div>
+        <p>Loading Profile...</p>
+    </div>
+
+    <!-- Main 3D Canvas Container -->
+    <div id="canvas-container"></div>
+
+    <!-- Profile Info Overlay (appears on hover) -->
+    <div id="profile-overlay" class="hidden">
+        <div class="profile-content">
+            <img id="avatar" src="" alt="Avatar">
+            <h1 id="username">Username</h1>
+            <p id="bio">Bio loading...</p>
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="stat-value" id="repos">0</span>
+                    <span class="stat-label">Repositories</span>
+                </div>
+            </div>
+            <a id="github-link" href="#" target="_blank" rel="noopener noreferrer">
+                <button class="github-button">Visit GitHub Profile →</button>
+            </a>
+        </div>
+    </div>
+
+    <!-- Instructions -->
+    <div id="instructions">
+        <p>🖱️ Drag to rotate • 🔍 Scroll to zoom • 👆 Hover for details • ✨ Enjoy the magic</p>
+    </div>
+
+    <!-- Stats Corner -->
+    <div id="stats-corner">
+        <div class="stat-badge">
+            <span class="badge-icon">🎨</span>
+            <span class="badge-text">Enhanced 3D</span>
+        </div>
+        <div class="stat-badge">
+            <span class="badge-icon">⚡</span>
+            <span class="badge-text">WebGL</span>
+        </div>
+    </div>
+
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- Main Script -->
+    <script src="main.js"></script>
+</body>
+</html>
