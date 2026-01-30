@@ -19,12 +19,55 @@ const CONFIG = {
         particles: 0x00d4ff
     },
     
-    PARTICLE_COUNT: 2000,
-    ENABLE_SHADOWS: true,
-    ENABLE_BLOOM: true,
+    PARTICLE_COUNT: 300,
+    ENABLE_SHADOWS: false,
+    ENABLE_BLOOM: false,
     ENABLE_REPO_CARDS: true,
     ENABLE_SKILL_BADGES: true,
-    MAX_REPOS_DISPLAY: 6
+    MAX_REPOS_DISPLAY: 4,
+    PROXIMITY_THRESHOLD: 6.5
+};
+
+// 🎯 Tech Stack Configuration
+const TECH_STACK = {
+    mainCard: {
+        title: 'GitHub Profile',
+        tech: ['Three.js', 'WebGL', 'JavaScript ES6+', 'GitHub API', 'CSS3 Animations', 'Python', 'Machine Learning']
+    },
+    
+    // Repository-specific tech stacks
+    repositories: {
+        'loan-eligibility-prediction': {
+            title: 'Loan Eligibility Prediction System',
+            tech: ['Python', 'Flask', 'Supabase', 'Random Forest', 'XGBoost', 'Deepchecks', 'Docker', 'PostgreSQL']
+        },
+        'StreeRaksha': {
+            title: 'StreeRaksha - Women Safety System',
+            tech: ['Python', 'YOLOv5', 'DeepSORT', 'FastAPI', 'Firebase', 'Supabase', 'OpenCV', 'Redis']
+        },
+        'lung-disease-classification': {
+            title: 'Lung Disease Classification',
+            tech: ['Python', 'TensorFlow', 'Keras', 'VGG-19', 'CNN', 'Deep Learning', 'Medical AI']
+        },
+        'Reem': {
+            title: '3D Profile Viewer',
+            tech: ['Three.js', 'WebGL', 'JavaScript', 'CSS3', 'GitHub API']
+        }
+    },
+    
+    // Skill-specific tech details
+    skills: {
+        'JavaScript': ['ES6+', 'Three.js', 'WebGL', 'Node.js', 'DOM Manipulation', 'Async/Await'],
+        'Python': ['Flask', 'FastAPI', 'TensorFlow', 'Keras', 'OpenCV', 'Scikit-learn', 'Pandas', 'NumPy'],
+        'React': ['Hooks', 'State Management', 'Component Design', 'REST APIs', 'Modern UI/UX'],
+        'Node.js': ['Express', 'FastAPI', 'REST APIs', 'WebSockets', 'Microservices'],
+        'Three.js': ['WebGL', '3D Graphics', 'Animations', 'Materials', 'Lighting', 'Particle Systems'],
+        'Machine Learning': ['Random Forest', 'XGBoost', 'CNN', 'Transfer Learning', 'Model Deployment', 'Deepchecks'],
+        'Databases': ['PostgreSQL', 'Supabase', 'Firebase', 'MySQL', 'MongoDB', 'Redis'],
+        'DevOps': ['Docker', 'Git', 'GitHub', 'CI/CD', 'Deployment'],
+        'Computer Vision': ['YOLOv5', 'DeepSORT', 'OpenCV', 'Object Detection', 'Tracking'],
+        'Deep Learning': ['TensorFlow', 'Keras', 'VGG-19', 'CNN', 'Transfer Learning', 'Model Training']
+    }
 };
 
 /* ========================================
@@ -40,6 +83,15 @@ let particleSystems = [];
 let mouse = { x: 0, y: 0 };
 let dynamicLight;
 let githubData = null;
+
+// Proximity detection variables
+let nearObject = null;
+let lastNearObject = null;
+let proximityDebounceTimer = null;
+let interactiveObjects = [];
+let raycaster = new THREE.Raycaster();
+let clickedObject = null;
+let hoveredObject = null;
 
 /* ========================================
    SCENE SETUP
@@ -73,9 +125,8 @@ function initScene() {
 
 function createEnhancedParticles() {
     const layers = [
-        { color: CONFIG.COLORS.primary, size: 0.15, count: CONFIG.PARTICLE_COUNT * 0.5, speed: 0.0002 },
-        { color: CONFIG.COLORS.secondary, size: 0.1, count: CONFIG.PARTICLE_COUNT * 0.3, speed: 0.0003 },
-        { color: CONFIG.COLORS.accent, size: 0.08, count: CONFIG.PARTICLE_COUNT * 0.2, speed: 0.00015 }
+        { color: CONFIG.COLORS.primary, size: 0.15, count: CONFIG.PARTICLE_COUNT * 0.6, speed: 0.0002 },
+        { color: CONFIG.COLORS.secondary, size: 0.1, count: CONFIG.PARTICLE_COUNT * 0.4, speed: 0.0003 }
     ];
     
     layers.forEach((layer) => {
@@ -143,7 +194,16 @@ function createEnhancedCard() {
     const cardMesh = new THREE.Mesh(cardGeometry, materials);
     cardMesh.castShadow = CONFIG.ENABLE_SHADOWS;
     cardMesh.receiveShadow = CONFIG.ENABLE_SHADOWS;
+    
+    // Attach tech stack metadata
+    cardMesh.userData.tech = TECH_STACK.mainCard.tech;
+    cardMesh.userData.title = TECH_STACK.mainCard.title;
+    cardMesh.userData.type = 'mainCard';
+    cardMesh.userData.baseEmissive = CONFIG.COLORS.primary;
+    cardMesh.userData.baseEmissiveIntensity = 0.1;
+    
     card.add(cardMesh);
+    interactiveObjects.push(cardMesh);
     
     // Glowing edges
     const edgeGeometry = new THREE.EdgesGeometry(cardGeometry);
@@ -155,7 +215,6 @@ function createEnhancedCard() {
     const wireframe = new THREE.LineSegments(edgeGeometry, edgeMaterial);
     card.add(wireframe);
     
-    createFloatingRings();
     createHolographicCorners();
     
     scene.add(card);
@@ -264,14 +323,38 @@ async function createRepoCards() {
             const edges = new THREE.LineSegments(edgeGeo, edgeMat);
             miniCard.add(edges);
             
+            // Determine tech stack - use predefined or auto-detect
+            const repoKey = repo.name.toLowerCase();
+            let repoTech, repoTitle;
+            
+            if (TECH_STACK.repositories[repoKey]) {
+                repoTech = TECH_STACK.repositories[repoKey].tech;
+                repoTitle = TECH_STACK.repositories[repoKey].title;
+            } else if (TECH_STACK.repositories[repo.name]) {
+                repoTech = TECH_STACK.repositories[repo.name].tech;
+                repoTitle = TECH_STACK.repositories[repo.name].title;
+            } else {
+                repoTech = repo.language ? 
+                    [repo.language, 'Git', 'GitHub', ...(repo.topics || []).slice(0, 3)] :
+                    ['Git', 'GitHub', 'Open Source'];
+                repoTitle = repo.name;
+            }
+            
             miniCard.userData = {
                 orbitSpeed: 0.0005,
                 angle: angle,
                 radius: radius,
                 verticalOffset: Math.sin(i * 0.5) * 2,
                 repoName: repo.name,
-                stars: repo.stargazers_count
+                stars: repo.stargazers_count,
+                tech: repoTech,
+                title: repoTitle,
+                type: 'repository',
+                baseEmissive: CONFIG.COLORS.secondary,
+                baseEmissiveIntensity: 0.2
             };
+            
+            interactiveObjects.push(miniCard);
             
             repoCards.push(miniCard);
             scene.add(miniCard);
@@ -289,11 +372,10 @@ function createSkillBadges() {
     if (!CONFIG.ENABLE_SKILL_BADGES) return;
     
     const skills = [
-        { name: 'JavaScript', color: 0xf7df1e, y: 6 },
-        { name: 'Python', color: 0x3776ab, y: 5 },
-        { name: 'React', color: 0x61dafb, y: 4 },
-        { name: 'Node.js', color: 0x339933, y: 3 },
-        { name: 'Three.js', color: 0x000000, y: 2 }
+        { name: 'Python', color: 0x3776ab, x: -8, y: 6, z: -3 },
+        { name: 'Machine Learning', color: 0xff6f00, x: -6, y: 4, z: -6 },
+        { name: 'Deep Learning', color: 0x00bcd4, x: -9, y: 2, z: -4 },
+        { name: 'JavaScript', color: 0xf7df1e, x: -6, y: 6.5, z: -4 }
     ];
     
     skills.forEach((skill, i) => {
@@ -307,15 +389,21 @@ function createSkillBadges() {
         });
         
         const badge = new THREE.Mesh(badgeGeometry, badgeMaterial);
-        badge.position.set(-6 + i * 1.5, skill.y, -5);
+        badge.position.set(skill.x, skill.y, skill.z);
         badge.rotation.z = Math.PI / 2;
         badge.userData = {
             floatSpeed: 0.001 + i * 0.0002,
             floatRange: 0.3,
             originalY: skill.y,
-            rotationSpeed: 0.01
+            rotationSpeed: 0.01,
+            tech: TECH_STACK.skills[skill.name] || [skill.name],
+            title: skill.name,
+            type: 'skill',
+            baseEmissive: skill.color,
+            baseEmissiveIntensity: 0.3
         };
         
+        interactiveObjects.push(badge);
         skillBadges.push(badge);
         scene.add(badge);
     });
@@ -332,8 +420,8 @@ function createDynamicLights() {
     pointLight = new THREE.PointLight(CONFIG.COLORS.primary, 2, 100);
     pointLight.position.set(5, 5, 5);
     pointLight.castShadow = CONFIG.ENABLE_SHADOWS;
-    pointLight.shadow.mapSize.width = 2048;
-    pointLight.shadow.mapSize.height = 2048;
+    pointLight.shadow.mapSize.width = 512;
+    pointLight.shadow.mapSize.height = 512;
     scene.add(pointLight);
     
     const accentLight1 = new THREE.PointLight(CONFIG.COLORS.accent, 1.5, 50);
@@ -387,12 +475,63 @@ function setupMouseControls() {
             targetRotation.x += deltaY * 0.01;
             
             previousMousePosition = { x: e.clientX, y: e.clientY };
+        } else {
+            // Check hover on floating objects
+            const rect = canvas.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+            
+            raycaster.setFromCamera({ x, y }, camera);
+            
+            const floatingObjects = interactiveObjects.filter(obj => obj.userData.type !== 'mainCard');
+            const intersects = raycaster.intersectObjects(floatingObjects, true);
+            
+            if (intersects.length > 0) {
+                let hovered = intersects[0].object;
+                while (hovered.parent && !hovered.userData.tech) {
+                    hovered = hovered.parent;
+                }
+                hoveredObject = hovered.userData.tech ? hovered : null;
+                canvas.style.cursor = hoveredObject ? 'pointer' : 'grab';
+            } else {
+                hoveredObject = null;
+                canvas.style.cursor = isDragging ? 'grabbing' : 'grab';
+            }
         }
     });
     
     canvas.addEventListener('mouseup', () => {
         isDragging = false;
         canvas.style.cursor = 'grab';
+    });
+    
+    // Click detection for floating objects
+    canvas.addEventListener('click', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        
+        raycaster.setFromCamera({ x, y }, camera);
+        
+        // Only check floating repos and skill badges
+        const floatingObjects = interactiveObjects.filter(obj => obj.userData.type !== 'mainCard');
+        const intersects = raycaster.intersectObjects(floatingObjects, true);
+        
+        if (intersects.length > 0) {
+            // Find the parent object
+            let clicked = intersects[0].object;
+            while (clicked.parent && !clicked.userData.tech) {
+                clicked = clicked.parent;
+            }
+            
+            if (clicked.userData.tech) {
+                clickedObject = clicked;
+                updateTechStackOverlay();
+            }
+        } else {
+            clickedObject = null;
+            updateTechStackOverlay();
+        }
     });
     
     canvas.addEventListener('wheel', (e) => {
@@ -485,6 +624,102 @@ function hideLoading() {
 }
 
 /* ========================================
+   PROXIMITY DETECTION SYSTEM 🎯
+   ======================================== */
+
+function isNear(object, threshold = CONFIG.PROXIMITY_THRESHOLD) {
+    if (!object || !object.position) return false;
+    const distance = camera.position.distanceTo(object.position);
+    return distance < threshold;
+}
+
+function checkProximity() {
+    let closest = null;
+    let closestDistance = Infinity;
+    
+    // Only check floating repos and skill badges (not main card)
+    interactiveObjects.forEach(obj => {
+        if (!obj.position || obj.userData.type === 'mainCard') return;
+        const distance = camera.position.distanceTo(obj.position);
+        if (distance < CONFIG.PROXIMITY_THRESHOLD && distance < closestDistance) {
+            closestDistance = distance;
+            closest = obj;
+        }
+    });
+    
+    // Debounce to prevent flickering
+    if (closest !== lastNearObject) {
+        clearTimeout(proximityDebounceTimer);
+        proximityDebounceTimer = setTimeout(() => {
+            nearObject = closest;
+            updateTechStackOverlay();
+            updateObjectGlow();
+        }, 150);
+        lastNearObject = closest;
+    }
+}
+
+function updateObjectGlow() {
+    // Reset all objects to base glow (skip main card)
+    interactiveObjects.forEach(obj => {
+        if (obj.userData.type === 'mainCard') return;
+        
+        if (obj.material && obj.material.emissiveIntensity !== undefined) {
+            const targetIntensity = obj === nearObject ? 
+                (obj.userData.baseEmissiveIntensity || 0.2) * 2.5 : 
+                (obj.userData.baseEmissiveIntensity || 0.2);
+            
+            if (Array.isArray(obj.material)) {
+                obj.material.forEach(mat => {
+                    if (mat.emissiveIntensity !== undefined) {
+                        mat.emissiveIntensity += (targetIntensity - mat.emissiveIntensity) * 0.1;
+                    }
+                });
+            } else {
+                obj.material.emissiveIntensity += (targetIntensity - obj.material.emissiveIntensity) * 0.1;
+            }
+        }
+    });
+}
+
+function updateTechStackOverlay() {
+    const overlay = document.getElementById('tech-stack-overlay');
+    const titleEl = document.getElementById('tech-title');
+    const chipsContainer = document.getElementById('tech-chips');
+    
+    if (!overlay || !titleEl || !chipsContainer) return;
+    
+    if (clickedObject && clickedObject.userData.tech) {
+        // Show overlay with object type icon
+        const icon = clickedObject.userData.type === 'repository' ? '📦' : 
+                     clickedObject.userData.type === 'skill' ? '🎯' : '✨';
+        titleEl.innerHTML = `${icon} ${clickedObject.userData.title || 'Technology Stack'}`;
+        
+        // Add stars if it's a repo
+        if (clickedObject.userData.stars !== undefined) {
+            titleEl.innerHTML += ` <span style="color: #ffd700; font-size: 14px;">⭐ ${clickedObject.userData.stars}</span>`;
+        }
+        
+        // Clear and populate chips
+        chipsContainer.innerHTML = '';
+        clickedObject.userData.tech.forEach((tech, index) => {
+            const chip = document.createElement('div');
+            chip.className = 'tech-chip';
+            chip.textContent = tech;
+            chip.style.animationDelay = `${index * 0.05}s`;
+            chipsContainer.appendChild(chip);
+        });
+        
+        overlay.classList.add('visible');
+        overlay.classList.remove('hidden');
+    } else {
+        // Hide overlay
+        overlay.classList.remove('visible');
+        setTimeout(() => overlay.classList.add('hidden'), 300);
+    }
+}
+
+/* ========================================
    ANIMATION LOOP 🎬
    ======================================== */
 
@@ -492,6 +727,9 @@ function animate() {
     requestAnimationFrame(animate);
     
     const time = Date.now() * 0.001;
+    
+    // Check proximity to interactive objects
+    checkProximity();
     
     // Animate card
     if (card) {
@@ -529,22 +767,7 @@ function animate() {
     // Animate particles
     particleSystems.forEach((system) => {
         system.rotation.y += system.geometry.userData.speed;
-        system.rotation.x += system.geometry.userData.speed * 0.5;
-        
-        const positions = system.geometry.attributes.position.array;
-        const velocities = system.geometry.userData.velocities;
-        
-        for (let i = 0; i < positions.length; i += 3) {
-            positions[i] += velocities[i] * 0.1;
-            positions[i + 1] += velocities[i + 1] * 0.1;
-            positions[i + 2] += velocities[i + 2] * 0.1;
-            
-            if (Math.abs(positions[i]) > 50) positions[i] *= -1;
-            if (Math.abs(positions[i + 1]) > 50) positions[i + 1] *= -1;
-            if (Math.abs(positions[i + 2]) > 50) positions[i + 2] *= -1;
-        }
-        
-        system.geometry.attributes.position.needsUpdate = true;
+        // Removed per-particle position updates for performance
     });
     
     // Animate repo cards
@@ -555,14 +778,25 @@ function animate() {
         repoCard.position.y = repoCard.userData.verticalOffset + Math.sin(time + repoCard.userData.angle) * 0.5;
         repoCard.lookAt(0, repoCard.position.y, 0);
         
-        const scale = 1 + Math.sin(time * 2 + repoCard.userData.angle) * 0.05;
-        repoCard.scale.set(scale, scale, scale);
+        // Scale effect for hover or click
+        const isActive = repoCard === hoveredObject || repoCard === clickedObject;
+        const targetScale = isActive ? 1.3 : (1 + Math.sin(time * 2 + repoCard.userData.angle) * 0.05);
+        const currentScale = repoCard.scale.x;
+        const newScale = currentScale + (targetScale - currentScale) * 0.15;
+        repoCard.scale.set(newScale, newScale, newScale);
     });
     
     // Animate skill badges
     skillBadges.forEach(badge => {
         badge.position.y = badge.userData.originalY + Math.sin(time * badge.userData.floatSpeed * 100) * badge.userData.floatRange;
         badge.rotation.y += badge.userData.rotationSpeed;
+        
+        // Scale effect for hover or click
+        const isActive = badge === hoveredObject || badge === clickedObject;
+        const targetScale = isActive ? 1.3 : 1;
+        const currentScale = badge.scale.x;
+        const newScale = currentScale + (targetScale - currentScale) * 0.15;
+        badge.scale.set(newScale, newScale, newScale);
     });
     
     // Animate lights
